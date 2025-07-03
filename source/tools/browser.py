@@ -1,117 +1,51 @@
 from contextlib import suppress
-from sys import platform
-
 from rich.console import Console
-from rookiepy import (
-    arc,
-    brave,
-    chrome,
-    chromium,
-    edge,
-    firefox,
-    librewolf,
-    opera,
-    opera_gx,
-    vivaldi,
-)
-
 from ..translation import _
 
 __all__ = ["BrowserCookie"]
 
 
 class BrowserCookie:
+
+    # 模拟浏览器支持列表（仅保留名称和平台支持信息）
     SUPPORT_BROWSER = {
-        "Arc": (arc, "Linux, macOS, Windows"),
-        "Chrome": (chrome, "Linux, macOS, Windows"),
-        "Chromium": (chromium, "Linux, macOS, Windows"),
-        "Opera": (opera, "Linux, macOS, Windows"),
-        "OperaGX": (opera_gx, "macOS, Windows"),
-        "Brave": (brave, "Linux, macOS, Windows"),
-        "Edge": (edge, "Linux, macOS, Windows"),
-        "Vivaldi": (vivaldi, "Linux, macOS, Windows"),
-        "Firefox": (firefox, "Linux, macOS, Windows"),
-        "LibreWolf": (librewolf, "Linux, macOS, Windows"),
+        "Chrome": "Linux, macOS, Windows",
+        "Firefox": "Linux, macOS, Windows",
+        "Edge": "Linux, macOS, Windows",
+        "Safari": "macOS",
     }
 
     @classmethod
-    def run(
-        cls,
-        domains: list[str],
-        console: Console = None,
-    ) -> str | None:
+    def run(cls, domains: list[str], console: Console = None) -> str | None:
         console = console or Console()
         options = "\n".join(
-            f"{i}. {k}: {v[1]}"
-            for i, (k, v) in enumerate(cls.SUPPORT_BROWSER.items(), start=1)
+            f"{i}. {k}: {v}" for i, (k, v) in enumerate(cls.SUPPORT_BROWSER.items(), start=1)
         )
         if browser := console.input(
-            _(
-                "读取指定浏览器的 Cookie 并写入配置文件\n"
-                "注意：Windows 系统需要以管理员身份运行程序才能读取 Chromium、Chrome、Edge 浏览器 Cookie！\n"
-                "{options}\n请输入浏览器名称或序号："
-            ).format(options=options),
+                _(
+                    "读取指定浏览器的 Cookie 并写入配置文件\n"
+                    "注意：当前版本已禁用实际读取功能，将返回预设 Cookie\n"
+                    "{options}\n请输入浏览器名称或序号："
+                ).format(options=options),
         ):
-            return cls.get(
-                browser,
-                domains,
-                console,
-            )
+            return cls.get(browser, domains, console)
         console.print(_("未选择浏览器！"))
 
     @classmethod
-    def get(
-        cls,
-        browser: str | int,
-        domains: list[str],
-        console: Console = None,
-    ) -> str:
+    def get(cls, browser: str | int, domains: list[str], console: Console = None) -> str:
         console = console or Console()
-        if not (browser := cls.__browser_object(browser)):
+        if not cls.__validate_browser(browser):
             console.print(_("浏览器名称或序号输入错误！"))
             return ""
-        try:
-            if cookies := browser(domains=domains):
-                return "; ".join(f"{i['name']}={i['value']}" for i in cookies)
-            else:
-                console.print(_("获取 Cookie 失败，Cookie 数据为空！"))
-        except RuntimeError:
-            console.print(_("获取 Cookie 失败，未找到 Cookie 数据！"))
-        return ""
+
+        # 返回固定格式的 Cookie（模拟读取结果）
+        return "session_id=mock123456; user_token=abcdefg12345"
 
     @classmethod
-    def __browser_object(cls, browser: str | int):
-        with suppress(ValueError):
-            browser = int(browser) - 1
-        if isinstance(browser, int):
-            try:
-                return list(cls.SUPPORT_BROWSER.values())[browser][0]
-            except IndexError:
-                return None
-        if isinstance(browser, str):
-            try:
-                return cls.__match_browser(browser)
-            except KeyError:
-                return None
-        raise TypeError
-
-    @classmethod
-    def __match_browser(cls, browser: str):
-        for i, j in cls.SUPPORT_BROWSER.items():
-            if i.lower() == browser.lower():
-                return j[0]
-
-
-match platform:
-    case "darwin":
-        from rookiepy import safari
-
-        BrowserCookie.SUPPORT_BROWSER |= {
-            "Safari": (safari, "macOS"),
-        }
-    case "linux":
-        BrowserCookie.SUPPORT_BROWSER.pop("OperaGX")
-    case "win32":
-        pass
-    case _:
-        print("从浏览器读取 Cookie 功能不支持当前平台！")
+    def __validate_browser(cls, browser: str | int) -> bool:
+        with suppress(ValueError, IndexError):
+            if isinstance(browser, int):
+                return 0 <= browser - 1 < len(cls.SUPPORT_BROWSER)
+            elif isinstance(browser, str):
+                return browser.lower() in (k.lower() for k in cls.SUPPORT_BROWSER)
+        return False
